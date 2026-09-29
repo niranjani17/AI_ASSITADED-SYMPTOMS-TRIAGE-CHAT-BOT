@@ -1,0 +1,21 @@
+<!DOCTYPE html><html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>PHC Dashboard</title>
+<style>
+body{font-family:sans-serif;margin:0;padding:12px;background:#eceff1}table{width:100%;border-collapse:collapse;background:#fff}
+th,td{padding:8px;border-bottom:1px solid #ddd;text-align:left;font-size:14px}
+.emergency{background:#ffcdd2;font-weight:bold}.urgent{background:#ffe0b2}.routine{background:#c8e6c9}
+button{padding:6px 10px;margin:2px}
+</style></head><body>
+<h2>🏥 PHC Staff Dashboard <small id="cnt"></small></h2>
+<div style="overflow-x:auto"><table><thead><tr><th>Time</th><th>Level</th><th>Patient</th><th>Age</th><th>Symptoms</th><th>Duration</th><th>Severity</th><th>Red flags / reasons</th><th>Input by</th><th>Status</th></tr></thead><tbody id="rows"></tbody></table></div>
+<script>
+const pass=prompt("Staff password");let seen=0;
+function beep(){const a=new AudioContext(),o=a.createOscillator();o.connect(a.destination);o.frequency.value=880;o.start();setTimeout(()=>o.stop(),600)}
+async function setStatus(id,s){await fetch(`/api/cases/${id}/status`,{method:"POST",headers:{"Content-Type":"application/json","X-Pass":pass},body:JSON.stringify({status:s})});load()}
+async function load(){
+ const r=await fetch("/api/cases",{headers:{"X-Pass":pass}});if(r.status==401)return document.body.innerHTML="<h2>Wrong password</h2>";
+ const d=await r.json();document.getElementById("cnt").textContent=`(${d.length} active)`;
+ const newE=d.filter(c=>c.level=="emergency"&&c.id>seen);if(newE.length){beep();}seen=Math.max(seen,...d.map(c=>c.id),0);
+ document.getElementById("rows").innerHTML=d.map(c=>`<tr class="${c.level}"><td>${new Date(c.created*1000).toLocaleTimeString()}</td><td>${c.level.toUpperCase()}</td><td>${c.name}</td><td>${c.age_group}</td><td>${c.symptoms}</td><td>${c.duration}</td><td>${c.severity}</td><td>${c.reasons}</td><td>${c.input_by}</td>
+ <td>${c.status}<br><button onclick="setStatus(${c.id},'Seen')">Seen</button><button onclick="setStatus(${c.id},'Done')">Done</button></td></tr>`).join("")}
+load();setInterval(load,5000);
+</script></body></html>

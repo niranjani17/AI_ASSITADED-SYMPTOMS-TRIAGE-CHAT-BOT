@@ -1,0 +1,1670 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>PHC Triage</title>
+
+<style>
+body{
+    font-family:sans-serif;
+    margin:0;
+    background:#f4f7f6;
+    text-align:center
+}
+
+#box{
+    padding:16px 12px 110px
+}
+
+h2{
+    font-size:22px
+}
+
+.grid{
+    display:grid;
+    grid-template-columns:repeat(2,1fr);
+    gap:10px
+}
+
+button{
+    font-size:18px;
+    padding:14px;
+    border:2px solid #cfd8dc;
+    border-radius:14px;
+    background:#fff
+}
+
+button .e{
+    display:block;
+    font-size:40px
+}
+
+button.sel{
+    background:#c8e6c9;
+    border-color:#2e7d32
+}
+
+.mic{
+    font-size:44px;
+    border-radius:50%;
+    width:80px;
+    height:80px;
+    margin:14px
+}
+
+.next{
+    background:#1565c0;
+    color:#fff;
+    width:100%;
+    margin-top:10px
+}
+
+#sos{
+    position:fixed;
+    bottom:0;
+    left:0;
+    right:0;
+    background:#c62828;
+    color:#fff;
+    border-radius:0;
+    font-weight:bold;
+    font-size:22px
+}
+
+.res{
+    padding:24px;
+    border-radius:16px;
+    color:#fff;
+    font-size:22px
+}
+
+input{
+    font-size:20px;
+    padding:12px;
+    width:85%
+}
+
+small{
+    color:#555
+}
+
+#top{
+    display:flex;
+    gap:6px;
+    padding:8px;
+    background:#263238
+}
+
+#top button{
+    flex:1;
+    padding:10px;
+    font-size:16px
+}
+
+table{
+    width:100%;
+    border-collapse:collapse;
+    background:#fff
+}
+
+th,td{
+    padding:8px;
+    border-bottom:1px solid #ddd;
+    text-align:left;
+    font-size:14px
+}
+
+.emergency{
+    background:#ffcdd2;
+    font-weight:bold
+}
+
+.urgent{
+    background:#ffe0b2
+}
+
+.routine{
+    background:#c8e6c9
+}
+
+#staff{
+    padding:10px
+}
+
+.lang-title{
+    margin-bottom:15px
+}
+
+.lang-btn{
+    width:90%;
+    margin:6px;
+    font-size:20px
+}
+</style>
+</head>
+
+<body>
+
+<div id="top">
+    <button onclick="view('p')">🙋 Patient</button>
+    <button onclick="view('s')">🏥 Staff</button>
+</div>
+
+<div id="staff" style="display:none">
+
+<h2>
+🏥 PHC Staff Dashboard
+<small id="cnt"></small>
+</h2>
+
+<div style="overflow-x:auto">
+
+<table>
+<thead>
+<tr>
+<th>Time</th>
+<th>Level</th>
+<th>Patient</th>
+<th>Age</th>
+<th>Symptoms</th>
+<th>Days</th>
+<th>Severity</th>
+<th>Reasons</th>
+<th>By</th>
+<th>Status</th>
+</tr>
+</thead>
+
+<tbody id="rows"></tbody>
+
+</table>
+
+</div>
+</div>
+
+<div id="box"></div>
+
+<button id="sos" onclick="sos()">
+🔴 EMERGENCY / அவசரம் / आपातकाल
+</button>
+
+<script>
+
+/* =========================
+   SYMPTOMS
+========================= */
+
+const SYM=[
+
+[
+"fever",
+"🤒",
+{
+en:"Fever",
+ta:"காய்ச்சல்",
+hi:"बुखार"
+},
+[
+"fever",
+"காய்ச்சல்",
+"बुखार"
+]
+],
+
+[
+"cough",
+"🤧",
+{
+en:"Cough/Cold",
+ta:"இருமல்/சளி",
+hi:"खांसी"
+},
+[
+"cough",
+"cold",
+"இருமல்",
+"சளி",
+"खांसी"
+]
+],
+
+[
+"headache",
+"🤕",
+{
+en:"Headache",
+ta:"தலைவலி",
+hi:"सिर दर्द"
+},
+[
+"head",
+"தலை",
+"सिर"
+]
+],
+
+[
+"vomiting",
+"🤢",
+{
+en:"Vomiting",
+ta:"வாந்தி",
+hi:"उल्टी"
+},
+[
+"vomit",
+"வாந்தி",
+"उल्टी"
+]
+],
+
+[
+"chest",
+"💔",
+{
+en:"Chest pain",
+ta:"நெஞ்சு வலி",
+hi:"सीने में दर्द"
+},
+[
+"chest",
+"நெஞ்சு",
+"सीने"
+]
+],
+
+[
+"breathing",
+"😮‍💨",
+{
+en:"Breathing problem",
+ta:"மூச்சு திணறல்",
+hi:"सांस की तकलीफ"
+},
+[
+"breath",
+"மூச்சு",
+"सांस"
+]
+],
+
+[
+"bleeding",
+"🩸",
+{
+en:"Heavy bleeding",
+ta:"இரத்தப்போக்கு",
+hi:"खून बहना"
+},
+[
+"bleed",
+"இரத்த",
+"खून"
+]
+],
+
+[
+"unconscious",
+"😵",
+{
+en:"Fainted",
+ta:"மயக்கம்",
+hi:"बेहोश"
+},
+[
+"faint",
+"unconscious",
+"மயக்கம்",
+"बेहोश"
+]
+],
+
+[
+"stroke",
+"🧠",
+{
+en:"Face droop/weak arm/slurred speech",
+ta:"முகம் கோணல்/கை பலவீனம்",
+hi:"चेहरा टेढ़ा/कमज़ोरी"
+},
+[
+"paralysis",
+"stroke",
+"வாதம்",
+"लकवा"
+]
+],
+
+[
+"seizure",
+"⚡",
+{
+en:"Fits",
+ta:"வலிப்பு",
+hi:"दौरा"
+},
+[
+"seizure",
+"fits",
+"வலிப்பு",
+"दौरा"
+]
+]
+
+];
+
+
+/* =========================
+   DURATION
+========================= */
+
+const DUR=[
+
+[
+"1d",
+"📅",
+{
+en:"Today",
+ta:"இன்று",
+hi:"आज"
+}
+],
+
+[
+"1-3d",
+"📆",
+{
+en:"1-3 days",
+ta:"1-3 நாள்",
+hi:"1-3 दिन"
+}
+],
+
+[
+"3-7d",
+"🗓️",
+{
+en:"3-7 days",
+ta:"3-7 நாள்",
+hi:"3-7 दिन"
+}
+],
+
+[
+"7d+",
+"⏳",
+{
+en:"Over a week",
+ta:"ஒரு வாரத்துக்கு மேல்",
+hi:"हफ्ते से ज्यादा"
+}
+]
+
+];
+
+
+/* =========================
+   SEVERITY
+========================= */
+
+const SEV=[
+
+[
+"low",
+"😐",
+{
+en:"Mild",
+ta:"கொஞ்சம்",
+hi:"हल्का"
+}
+],
+
+[
+"mid",
+"😣",
+{
+en:"Medium",
+ta:"நடுத்தரம்",
+hi:"मध्यम"
+}
+],
+
+[
+"high",
+"😭",
+{
+en:"Severe",
+ta:"ரொம்ப அதிகம்",
+hi:"बहुत ज्यादा"
+}
+]
+
+];
+
+
+/* =========================
+   AGE
+========================= */
+
+const AGE=[
+
+[
+"child",
+"🧒",
+{
+en:"Child",
+ta:"குழந்தை",
+hi:"बच्चा"
+}
+],
+
+[
+"adult",
+"🧑",
+{
+en:"Adult",
+ta:"பெரியவர்",
+hi:"वयस्क"
+}
+],
+
+[
+"elder",
+"🧓",
+{
+en:"Elderly",
+ta:"முதியவர்",
+hi:"बुज़ुर्ग"
+}
+]
+
+];
+
+
+/* =========================
+   WHO
+========================= */
+
+const WHO=[
+
+[
+"patient",
+"🙋",
+{
+en:"Patient",
+ta:"நோயாளி",
+hi:"मरीज़"
+}
+],
+
+[
+"worker",
+"👩‍⚕️",
+{
+en:"Health worker",
+ta:"சுகாதார பணியாளர்",
+hi:"स्वास्थ्य कर्मी"
+}
+],
+
+[
+"family",
+"👪",
+{
+en:"Family",
+ta:"குடும்பத்தினர்",
+hi:"परिवार"
+}
+]
+
+];
+
+
+/* =========================
+   LANGUAGE TEXT
+========================= */
+
+const T={
+
+en:{
+code:"en-IN",
+
+q:[
+"What are your symptoms? Tap or speak",
+"How many days?",
+"How severe?",
+"Age group?",
+"Who is filling?",
+"Your name (optional)"
+],
+
+next:"Next ➡️",
+sub:"Submit ✅",
+
+res:{
+emergency:"🔴 EMERGENCY! Go to the PHC immediately.",
+urgent:"🟠 Urgent. See the doctor today.",
+routine:"🟢 Routine. Book a normal visit, rest and drink water."
+},
+
+disc:"This is not a medical diagnosis.",
+
+off:"No network. Saved, will send automatically."
+},
+
+ta:{
+code:"ta-IN",
+
+q:[
+"உங்களுக்கு என்ன பிரச்சனை? தொடவும் அல்லது பேசவும்",
+"எத்தனை நாளாக?",
+"எவ்வளவு அதிகம்?",
+"வயது?",
+"யார் நிரப்புகிறீர்கள்?",
+"உங்கள் பெயர் (விருப்பம்)"
+],
+
+next:"அடுத்து ➡️",
+sub:"அனுப்பு ✅",
+
+res:{
+emergency:"🔴 அவசரம்! உடனே ஆரம்ப சுகாதார நிலையம் செல்லுங்கள்.",
+urgent:"🟠 அவசரமானது. இன்றே டாக்டரைப் பாருங்கள்.",
+routine:"🟢 சாதாரணம். ஓய்வெடுத்து தண்ணீர் குடியுங்கள், சாதாரண வருகை போதும்."
+},
+
+disc:"இது மருத்துவ நோய் கண்டறிதல் அல்ல.",
+
+off:"இணையம் இல்லை. சேமிக்கப்பட்டது, தானாக அனுப்பப்படும்."
+},
+
+hi:{
+code:"hi-IN",
+
+q:[
+"आपको क्या तकलीफ है? छुएं या बोलें",
+"कितने दिनों से?",
+"कितना गंभीर?",
+"उम्र?",
+"कौन भर रहा है?",
+"आपका नाम (वैकल्पिक)"
+],
+
+next:"आगे ➡️",
+sub:"भेजें ✅",
+
+res:{
+emergency:"🔴 आपातकाल! तुरंत PHC जाएं।",
+urgent:"🟠 ज़रूरी। आज ही डॉक्टर को दिखाएं।",
+routine:"🟢 सामान्य। आराम करें, पानी पिएं।"
+},
+
+disc:"यह चिकित्सीय निदान नहीं है.",
+
+off:"नेटवर्क नहीं। सेव हो गया, अपने आप भेजा जाएगा."
+}
+
+};
+
+
+/* =========================
+   VARIABLES
+========================= */
+
+let lang="en";
+
+let data={
+    symptoms:[]
+};
+
+const box=document.getElementById("box");
+
+
+/* =========================
+   SPEAK
+========================= */
+
+function speak(t){
+
+    try{
+
+        speechSynthesis.cancel();
+
+        const u=new SpeechSynthesisUtterance(t);
+
+        u.lang=T[lang].code;
+
+        speechSynthesis.speak(u);
+
+    }catch(e){}
+
+}
+
+
+/* =========================
+   LANGUAGE SCREEN
+========================= */
+
+function start(){
+
+    data={
+        symptoms:[]
+    };
+
+    box.innerHTML=`
+
+        <h2 class="lang-title">
+        🌐 Language / மொழி / भाषा
+        </h2>
+
+        <button class="lang-btn"
+        onclick="selectLanguage('en')">
+        🇬🇧 English
+        </button>
+
+        <button class="lang-btn"
+        onclick="selectLanguage('ta')">
+        🇮🇳 தமிழ்
+        </button>
+
+        <button class="lang-btn"
+        onclick="selectLanguage('hi')">
+        🇮🇳 हिन्दी
+        </button>
+
+    `;
+
+}
+
+
+/* =========================
+   SELECT LANGUAGE
+========================= */
+
+function selectLanguage(selected){
+
+    lang=selected;
+
+    data={
+        symptoms:[]
+    };
+
+    step(0);
+
+}
+
+
+/* =========================
+   OPTIONS
+========================= */
+
+function opts(list,multi,field,n){
+
+    box.innerHTML=
+    `<h2>${T[lang].q[n]}</h2>
+    <div class="grid">`
+
+    +
+
+    list.map(o=>`
+
+        <button
+        data-v="${o[0]}"
+        onclick="pick(this,${multi},'${field}',${n})">
+
+        <span class="e">${o[1]}</span>
+
+        ${o[2][lang]}
+
+        </button>
+
+    `).join("")
+
+    +
+
+    `</div>`
+
+    +
+
+    (
+        multi
+        ?
+        `
+        <button class="mic"
+        onclick="listen()">
+        🎤
+        </button>
+
+        <br>
+
+        <button
+        class="next"
+        onclick="step(${n+1})">
+
+        ${T[lang].next}
+
+        </button>
+        `
+        :
+        ""
+    );
+
+
+    /* Keep selected symptoms */
+
+    if(data.symptoms){
+
+        data.symptoms.forEach(s=>{
+
+            const b=
+            box.querySelector(
+                `[data-v="${s}"]`
+            );
+
+            if(b)
+                b.classList.add("sel");
+
+        });
+
+    }
+
+
+    speak(T[lang].q[n]);
+
+}
+
+
+/* =========================
+   PICK OPTION
+========================= */
+
+function pick(b,multi,field,n){
+
+    const v=b.dataset.v;
+
+    if(multi){
+
+        b.classList.toggle("sel");
+
+        data.symptoms=[
+            ...box.querySelectorAll(".sel")
+        ].map(x=>x.dataset.v);
+
+    }
+
+    else{
+
+        data[field]=v;
+
+        step(n+1);
+
+    }
+
+}
+
+
+/* =========================
+   VOICE INPUT
+========================= */
+
+function listen(){
+
+    const R=
+    window.SpeechRecognition ||
+    window.webkitSpeechRecognition;
+
+    if(!R){
+
+        alert(
+            lang=="ta"
+            ?
+            "குரல் வசதி ஆதரிக்கப்படவில்லை. பட்டன்களை பயன்படுத்தவும்."
+            :
+            lang=="hi"
+            ?
+            "वॉइस सुविधा उपलब्ध नहीं है। बटन का उपयोग करें।"
+            :
+            "Voice is not supported. Please use the buttons."
+        );
+
+        return;
+    }
+
+
+    const r=new R();
+
+    r.lang=T[lang].code;
+
+
+    r.onresult=e=>{
+
+        const t=
+        e.results[0][0]
+        .transcript
+        .toLowerCase();
+
+
+        SYM.forEach(s=>{
+
+            if(
+                s[3].some(k=>
+                    t.includes(k.toLowerCase())
+                )
+                &&
+                !data.symptoms.includes(s[0])
+            ){
+
+                data.symptoms.push(s[0]);
+
+            }
+
+        });
+
+
+        opts(
+            SYM,
+            true,
+            "",
+            0
+        );
+
+    };
+
+
+    r.start();
+
+}
+
+
+/* =========================
+   STEPS
+========================= */
+
+function step(n){
+
+    /* STEP 1 - Symptoms */
+
+    if(n==0){
+
+        opts(
+            SYM,
+            true,
+            "",
+            0
+        );
+
+    }
+
+
+    /* STEP 2 - Duration */
+
+    else if(n==1){
+
+        if(!data.symptoms.length){
+
+            speak(
+                lang=="ta"
+                ?
+                "முதலில் அறிகுறியை தேர்வு செய்யவும்."
+                :
+                lang=="hi"
+                ?
+                "पहले लक्षण चुनें।"
+                :
+                "Please select at least one symptom."
+            );
+
+            return;
+        }
+
+
+        /* Emergency symptoms */
+
+        if(
+            data.symptoms.some(
+                s=>
+                [
+                    "chest",
+                    "breathing",
+                    "unconscious",
+                    "bleeding",
+                    "stroke",
+                    "seizure"
+                ].includes(s)
+            )
+        ){
+
+            data={
+                ...data,
+                duration:"1d",
+                severity:"high",
+                age:"unknown",
+                who:"unknown",
+                name:
+                lang=="ta"
+                ?
+                "அவசரம்"
+                :
+                lang=="hi"
+                ?
+                "आपातकाल"
+                :
+                "Emergency"
+            };
+
+            return send();
+
+        }
+
+
+        opts(
+            DUR,
+            false,
+            "duration",
+            1
+        );
+
+    }
+
+
+    /* STEP 3 - Severity */
+
+    else if(n==2){
+
+        opts(
+            SEV,
+            false,
+            "severity",
+            2
+        );
+
+    }
+
+
+    /* STEP 4 - Age */
+
+    else if(n==3){
+
+        opts(
+            AGE,
+            false,
+            "age",
+            3
+        );
+
+    }
+
+
+    /* STEP 5 - Who */
+
+    else if(n==4){
+
+        opts(
+            WHO,
+            false,
+            "who",
+            4
+        );
+
+    }
+
+
+    /* STEP 6 - Name */
+
+    else if(n==5){
+
+        box.innerHTML=`
+
+        <h2>
+        ${T[lang].q[5]}
+        </h2>
+
+        <input
+        id="nm"
+        placeholder="${T[lang].q[5]}">
+
+        <br><br>
+
+        <button
+        class="mic"
+        onclick="nameMic()">
+        🎤
+        </button>
+
+        <button
+        class="next"
+        onclick="
+        data.name=
+        document.getElementById('nm').value;
+        send()
+        ">
+
+        ${T[lang].sub}
+
+        </button>
+
+        `;
+
+        speak(T[lang].q[5]);
+
+    }
+
+}
+
+
+/* =========================
+   NAME VOICE
+========================= */
+
+function nameMic(){
+
+    const R=
+    window.SpeechRecognition ||
+    window.webkitSpeechRecognition;
+
+    if(!R)
+        return;
+
+
+    const r=new R();
+
+    r.lang=T[lang].code;
+
+
+    r.onresult=e=>{
+
+        document.getElementById("nm").value=
+        e.results[0][0].transcript;
+
+    };
+
+
+    r.start();
+
+}
+
+
+/* =========================
+   SOS
+========================= */
+
+function sos(){
+
+    data={
+        symptoms:["sos"],
+        duration:"1d",
+        severity:"high",
+        age:"adult",
+        who:"patient",
+        name:
+        lang=="ta"
+        ?
+        "SOS"
+        :
+        lang=="hi"
+        ?
+        "SOS"
+        :
+        "SOS"
+    };
+
+    send();
+
+}
+
+
+/* =========================
+   TRIAGE
+========================= */
+
+function triage(d){
+
+    const s=new Set(d.symptoms);
+
+    const E=[
+        "chest",
+        "breathing",
+        "unconscious",
+        "bleeding",
+        "stroke",
+        "seizure",
+        "sos"
+    ];
+
+
+    const red=
+    E.filter(x=>s.has(x));
+
+
+    if(red.length)
+        return[
+            "emergency",
+            red
+        ];
+
+
+    const r=[];
+
+
+    if(d.severity=="high")
+        r.push("severe discomfort");
+
+
+    if(
+        s.has("fever") &&
+        ["3-7d","7d+"]
+        .includes(d.duration)
+    )
+        r.push("fever 3+ days");
+
+
+    if(
+        s.has("fever") &&
+        ["child","elder"]
+        .includes(d.age)
+    )
+        r.push("fever in child/elderly");
+
+
+    if(
+        s.has("vomiting") &&
+        d.severity!="low"
+    )
+        r.push("persistent vomiting");
+
+
+    if(d.duration=="7d+")
+        r.push("long duration");
+
+
+    return r.length
+        ?
+        ["urgent",r]
+        :
+        ["routine",["mild symptoms"]];
+
+}
+
+
+/* =========================
+   SAVE CASE
+========================= */
+
+async function post(d){
+
+    const[l,r]=triage(d);
+
+    const c=
+    JSON.parse(
+        localStorage.cases || "[]"
+    );
+
+
+    c.push({
+
+        id:Date.now(),
+
+        name:
+        d.name ||
+        "Anonymous",
+
+        age_group:d.age,
+
+        input_by:d.who,
+
+        symptoms:
+        d.symptoms.join(","),
+
+        duration:d.duration,
+
+        severity:d.severity,
+
+        level:l,
+
+        reasons:
+        r.join(", "),
+
+        status:"Waiting",
+
+        created:
+        Date.now()/1000
+
+    });
+
+
+    localStorage.cases=
+    JSON.stringify(c);
+
+
+    return l;
+
+}
+
+
+/* =========================
+   SEND
+========================= */
+
+async function send(){
+
+    try{
+
+        const level=
+        await post(data);
+
+        show(level);
+
+    }
+
+    catch(e){
+
+        const q=
+        JSON.parse(
+            localStorage.q || "[]"
+        );
+
+        q.push(data);
+
+        localStorage.q=
+        JSON.stringify(q);
+
+
+        box.innerHTML=
+        `<h2>
+        ${T[lang].off}
+        </h2>`;
+
+    }
+
+}
+
+
+/* =========================
+   RESULT
+========================= */
+
+function show(level){
+
+    const colors={
+
+        emergency:"#c62828",
+        urgent:"#ef6c00",
+        routine:"#2e7d32"
+
+    };
+
+
+    const m=
+    T[lang].res[level];
+
+
+    box.innerHTML=`
+
+    <div
+    class="res"
+    style="background:${colors[level]}">
+
+    ${m}
+
+    </div>
+
+    <p>
+
+    <small>
+    ${T[lang].disc}
+    </small>
+
+    </p>
+
+    <button
+    class="next"
+    onclick="start()">
+
+    🔄 Start Again
+
+    </button>
+
+    `;
+
+
+    speak(
+        m+
+        " "+
+        T[lang].disc
+    );
+
+}
+
+
+/* =========================
+   OFFLINE QUEUE
+========================= */
+
+async function flush(){
+
+    const q=
+    JSON.parse(
+        localStorage.q || "[]"
+    );
+
+
+    if(!q.length)
+        return;
+
+
+    localStorage.q="[]";
+
+
+    for(
+        const d of q
+    ){
+
+        try{
+
+            await post(d);
+
+        }
+
+        catch(e){
+
+            const n=
+            JSON.parse(
+                localStorage.q || "[]"
+            );
+
+            n.push(d);
+
+            localStorage.q=
+            JSON.stringify(n);
+
+        }
+
+    }
+
+}
+
+
+/* =========================
+   STAFF
+========================= */
+
+let ok=false;
+let seen=0;
+
+
+const get=()=>
+JSON.parse(
+    localStorage.cases || "[]"
+);
+
+
+/* =========================
+   VIEW
+========================= */
+
+function view(v){
+
+    if(v=="s" && !ok){
+
+        if(
+            prompt("Staff password")
+            !=
+            "phc123"
+        )
+            return;
+
+        ok=true;
+
+    }
+
+
+    box.style.display=
+    v=="p"
+    ?
+    ""
+    :
+    "none";
+
+
+    staff.style.display=
+    v=="s"
+    ?
+    ""
+    :
+    "none";
+
+
+    sos.style.display=
+    v=="p"
+    ?
+    ""
+    :
+    "none";
+
+
+    if(v=="s")
+        load();
+
+}
+
+
+/* =========================
+   STAFF SOUND
+========================= */
+
+function beep(){
+
+    try{
+
+        const a=
+        new AudioContext();
+
+        const o=
+        a.createOscillator();
+
+        o.connect(
+            a.destination
+        );
+
+        o.frequency.value=880;
+
+        o.start();
+
+        setTimeout(
+            ()=>o.stop(),
+            600
+        );
+
+    }
+
+    catch(e){}
+
+}
+
+
+/* =========================
+   STATUS
+========================= */
+
+function setStatus(id,s){
+
+    const c=get();
+
+
+    c.forEach(x=>{
+
+        if(x.id==id)
+            x.status=s;
+
+    });
+
+
+    localStorage.cases=
+    JSON.stringify(c);
+
+
+    load();
+
+}
+
+
+/* =========================
+   LOAD STAFF
+========================= */
+
+function load(){
+
+    if(!ok)
+        return;
+
+
+    const R={
+        emergency:0,
+        urgent:1,
+        routine:2
+    };
+
+
+    const d=
+    get()
+    .filter(
+        c=>c.status!="Done"
+    )
+    .sort(
+        (a,b)=>
+        R[a.level]-R[b.level]
+        ||
+        a.created-b.created
+    );
+
+
+    cnt.textContent=
+    `(${d.length} active)`;
+
+
+    if(
+        d.some(
+            c=>
+            c.level=="emergency"
+            &&
+            c.id>seen
+        )
+    )
+        beep();
+
+
+    seen=
+    Math.max(
+        seen,
+        ...d.map(c=>c.id),
+        0
+    );
+
+
+    rows.innerHTML=
+    d.map(c=>`
+
+    <tr class="${c.level}">
+
+    <td>
+    ${new Date(
+        c.created*1000
+    ).toLocaleTimeString()}
+    </td>
+
+    <td>
+    ${c.level.toUpperCase()}
+    </td>
+
+    <td>
+    ${c.name}
+    </td>
+
+    <td>
+    ${c.age_group}
+    </td>
+
+    <td>
+    ${c.symptoms}
+    </td>
+
+    <td>
+    ${c.duration}
+    </td>
+
+    <td>
+    ${c.severity}
+    </td>
+
+    <td>
+    ${c.reasons}
+    </td>
+
+    <td>
+    ${c.input_by}
+    </td>
+
+    <td>
+
+    ${c.status}
+
+    <br>
+
+    <button
+    onclick="
+    setStatus(${c.id},'Seen')
+    ">
+
+    Seen
+
+    </button>
+
+    <button
+    onclick="
+    setStatus(${c.id},'Done')
+    ">
+
+    Done
+
+    </button>
+
+    </td>
+
+    </tr>
+
+    `).join("");
+
+}
+
+
+/* =========================
+   STORAGE EVENT
+========================= */
+
+addEventListener(
+    "storage",
+    load
+);
+
+
+/* =========================
+   AUTO REFRESH STAFF
+========================= */
+
+setInterval(
+    load,
+    3000
+);
+
+
+/* =========================
+   START APP
+========================= */
+
+start();
+
+</script>
+
+</body>
+</html>
